@@ -1,4 +1,5 @@
-﻿using Gear;
+﻿using GameData;
+using Gear;
 using GTFO.API.Utilities;
 using MSC.Dependencies;
 using MSC.JSON;
@@ -112,31 +113,6 @@ namespace MSC.CustomMeleeData
             }
         }
 
-        private bool SetMeleeData(MeleeWeaponFirstPerson melee)
-        {
-            uint id = melee.MeleeArchetypeData.persistentID;
-            if (!_cachedData.TryGetValue(id, out var cachedData))
-            {
-                DinoLogger.Error($"Unable to get original data for melee {melee.name}, archetype ID {id}");
-                return false;
-            }
-
-            Transform refAttack = melee.ModelData.m_damageRefAttack;
-            Transform refPush = melee.ModelData.m_damageRefPush;
-            if (_idToData.TryGetValue(id, out var customData))
-            {
-                refAttack.localPosition = customData.AttackOffset!.Value;
-                refPush.localPosition = customData.PushOffset!.Value;
-                return true;
-            }
-            else
-            {
-                refAttack.localPosition = cachedData.AttackOffset!.Value;
-                refPush.localPosition = cachedData.PushOffset!.Value;
-                return false;
-            }
-        }
-
         private void PrintCustomIDs()
         {
             if (_idToData.Count > 0)
@@ -226,6 +202,63 @@ namespace MSC.CustomMeleeData
             if (_listeners.Any(listener => listener?.GetInstanceID() == melee.GetInstanceID())) return;
 
             _listeners.Add(melee);
+        }
+
+        private bool SetMeleeData(MeleeWeaponFirstPerson melee)
+        {
+            uint id = melee.MeleeArchetypeData.persistentID;
+            if (!_cachedData.TryGetValue(id, out var cachedData))
+            {
+                DinoLogger.Error($"Unable to get original data for melee {melee.name}, archetype ID {id}");
+                return false;
+            }
+
+            Transform refAttack = melee.ModelData.m_damageRefAttack;
+            Transform refPush = melee.ModelData.m_damageRefPush;
+            if (_idToData.TryGetValue(id, out var customData))
+            {
+                refAttack.localPosition = customData.AttackOffset!.Value;
+                refPush.localPosition = customData.PushOffset!.Value;
+                SetMeleeAttackTimings(melee, customData);
+                return true;
+            }
+            else
+            {
+                refAttack.localPosition = cachedData.AttackOffset!.Value;
+                refPush.localPosition = cachedData.PushOffset!.Value;
+                SetMeleeAttackTimings(melee, cachedData);
+                return false;
+            }
+        }
+
+        private void SetMeleeAttackTimings(MeleeWeaponFirstPerson melee, MeleeData data)
+        {
+            float mod = 1f / data.LightAttackSpeed;
+            var states = melee.m_states;
+            var animData = melee.MeleeAnimationData;
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackMissLeft].AttackData, animData.FPAttackMissLeft, mod);
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackMissRight].AttackData, animData.FPAttackMissRight, mod);
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackHitLeft].AttackData, animData.FPAttackHitLeft, mod);
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackHitRight].AttackData, animData.FPAttackHitRight, mod);
+
+            mod = 1f / data.ChargedAttackSpeed;
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeReleaseLeft].AttackData, animData.FPAttackChargeUpReleaseLeft, mod);
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeReleaseRight].AttackData, animData.FPAttackChargeUpReleaseRight, mod);
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeHitLeft].AttackData, animData.FPAttackChargeUpHitLeft, mod);
+            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeHitRight].AttackData, animData.FPAttackChargeUpHitRight, mod);
+
+            mod = 1f / data.PushSpeed;
+            CopyMeleeData(states[(int)eMeleeWeaponState.Push].AttackData, animData.FPAttackPush, mod);
+        }
+
+        private static void CopyMeleeData(MeleeAttackData data, MeleeAnimationSetDataBlock.MeleeAttackData animData, float mod = 1f)
+        {
+            data.m_attackLength = animData.AttackLengthTime * mod;
+            data.m_attackHitTime = animData.AttackHitTime * mod;
+            data.m_damageStartTime = animData.DamageStartTime * mod;
+            data.m_damageEndTime = animData.DamageEndTime * mod;
+            data.m_attackCamFwdHitTime = animData.AttackCamFwdHitTime * mod;
+            data.m_comboEarlyTime = animData.ComboEarlyTime * mod;
         }
     }
 }
