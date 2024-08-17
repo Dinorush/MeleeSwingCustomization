@@ -34,7 +34,7 @@
             },
             new()
             {
-                ArchetypeID = 4,
+                ArchetypeID = 0,
                 Name = "Improved Bat",
                 AttackOffset = new() {x=0, y=0.55f, z=0.0f},
                 PushOffset = null
