@@ -28,6 +28,7 @@ namespace MSC.Patches
 
         private static MWS_AttackLight? _lightLeft;
         private static MWS_AttackLight? _lightRight;
+        private static int _cachedID = 0;
         [HarmonyPatch(typeof(MeleeWeaponFirstPerson), nameof(MeleeWeaponFirstPerson.ChangeState))]
         [HarmonyWrapSafe]
         [HarmonyPostfix]
@@ -36,18 +37,20 @@ namespace MSC.Patches
             MeleeData? data = MeleeDataManager.Current.GetData(__instance.MeleeArchetypeData.persistentID);
             if (data == null) return;
 
+            if (_cachedID != __instance.GetInstanceID())
+            {
+                _lightLeft = __instance.m_states[(int)eMeleeWeaponState.AttackMissLeft].TryCast<MWS_AttackLight>()!;
+                _lightRight = __instance.m_states[(int)eMeleeWeaponState.AttackMissRight].TryCast<MWS_AttackLight>()!;
+            }
+
             switch (newState)
             {
                 case eMeleeWeaponState.AttackMissLeft:
-                    if (_lightLeft == null)
-                        _lightLeft = __instance.m_states[(int)eMeleeWeaponState.AttackMissLeft].TryCast<MWS_AttackLight>()!;
-                    _lightLeft.m_wantedNormalSpeed = data.LightAttackSpeed;
+                    _lightLeft!.m_wantedNormalSpeed = data.LightAttackSpeed;
                     _lightLeft.m_wantedChargeSpeed = data.LightAttackSpeed * 0.3f;
                     break;
                 case eMeleeWeaponState.AttackMissRight:
-                    if (_lightRight == null)
-                        _lightRight = __instance.m_states[(int)eMeleeWeaponState.AttackMissRight].TryCast<MWS_AttackLight>()!;
-                    _lightRight.m_wantedNormalSpeed = data.LightAttackSpeed;
+                    _lightRight!.m_wantedNormalSpeed = data.LightAttackSpeed;
                     _lightRight.m_wantedChargeSpeed = data.LightAttackSpeed * 0.3f;
                     break;
                 case eMeleeWeaponState.AttackHitLeft:
