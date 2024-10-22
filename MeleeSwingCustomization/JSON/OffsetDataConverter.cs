@@ -1,9 +1,7 @@
 ﻿using MSC.CustomMeleeData;
-using MSC.Utils;
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using UnityEngine;
 
 namespace MSC.JSON
 {
