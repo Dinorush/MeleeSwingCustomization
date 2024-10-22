@@ -16,7 +16,7 @@ namespace MSC.CustomMeleeData
         public Vector3? _capsuleOffsetEnd = null;
         private bool _capsuleUseCamFwd = false;
         private float _capsuleCamFwdAdd = 0f;
-        private float _capsuleSize = -1f;
+        private float _capsuleSize = 0f;
         private bool _capsuleUseCenterMod = false;
 
         public OffsetData(Vector3? offset = null)
@@ -38,11 +38,10 @@ namespace MSC.CustomMeleeData
         public bool HasOffset => _offset != null;
         public bool HasCapsule => _capsuleUseCamFwd || _capsuleOffset != null;
 
-
         public float CapsuleSize(MeleeArchetypeDataBlock data, float dotScale = 0)
         {
-            float size = _capsuleSize >= 0 ? _capsuleSize : data.AttackSphereRadius;
-            return _capsuleUseCenterMod && dotScale > 0.5f ? size * dotScale : size;
+            float size = _capsuleSize > 0 ? _capsuleSize : data.AttackSphereRadius;
+            return size * (1f + dotScale);
         }
 
         public (Vector3 start, Vector3 end) CapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data)
@@ -95,8 +94,20 @@ namespace MSC.CustomMeleeData
                 StringBuilder builder = new(MSCJson.Serialize(_offset)[1..^1]);
                 if (_capsuleOffset != null)
                     builder.Append(" " + MSCJson.Serialize(_capsuleOffset)[1..^1]);
+                if (_capsuleOffsetEnd != null)
+                    builder.Append(" " + MSCJson.Serialize(_capsuleOffsetEnd)[1..^1]);
                 writer.WriteStringValue(builder.ToString());
-                DinoLogger.Log(builder.ToString());
+            }
+            else
+                writer.WriteNullValue();
+
+            writer.WritePropertyName(PrettyName(nameof(_capsuleOffset)));
+            if (_capsuleOffset != null && _offset == null)
+            {
+                StringBuilder builder = new(MSCJson.Serialize(_capsuleOffset)[1..^1]);
+                if (_capsuleOffsetEnd != null)
+                    builder.Append(" " + MSCJson.Serialize(_capsuleOffsetEnd)[1..^1]);
+                writer.WriteStringValue(builder.ToString());
             }
             else
                 writer.WriteNullValue();
