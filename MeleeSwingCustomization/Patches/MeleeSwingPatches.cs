@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Il2CppGeneric = Il2CppSystem.Collections.Generic;
+using GameData;
 
 namespace MSC.Patches
 {
@@ -24,7 +25,7 @@ namespace MSC.Patches
             MeleeData? data = MeleeDataManager.Current.GetData(melee.MeleeArchetypeData.persistentID);
             if (data == null || !data.AttackOffset.HasCapsule) return;
 
-            _capsuleRoutine = CoroutineManager.StartCoroutine(CapsuleHitDetection(melee, __instance, data.AttackOffset).WrapToIl2Cpp());
+            _capsuleRoutine = CoroutineManager.StartCoroutine(CapsuleHitDetection(melee, __instance, data).WrapToIl2Cpp());
         }
 
         [HarmonyPatch(nameof(MWS_AttackSwingBase.Exit))]
@@ -39,15 +40,29 @@ namespace MSC.Patches
             }
         }
 
-        private static IEnumerator CapsuleHitDetection(MeleeWeaponFirstPerson melee, MWS_AttackSwingBase mws, OffsetData offsetData)
+        private static RaycastHit s_rayHit;
+        private static IEnumerator CapsuleHitDetection(MeleeWeaponFirstPerson melee, MWS_AttackSwingBase mws, MeleeData data)
         {
-            MeleeAttackData data = mws.AttackData;
-            float endTime = Clock.Time + data.m_damageEndTime;
-            yield return new WaitForSeconds(data.m_damageStartTime);
+            MeleeAttackData attackData = mws.AttackData;
+            float endTime = Clock.Time + attackData.m_damageEndTime;
+            yield return new WaitForSeconds(attackData.m_damageStartTime);
 
-            while (Clock.Time < endTime && mws != null && !mws.m_targetsFound)
+            MeleeArchetypeDataBlock archBlock = melee.MeleeArchetypeData;
+            FPSCamera camera = melee.Owner.FPSCamera;
+            while (Clock.Time < endTime && mws != null && !mws.m_targetsFound && camera != null)
             {
-                if (CapsuleCheckForHits(melee, mws.AttackData, offsetData, out var hits))
+                // Abort if we're looking directly at something
+                if (Physics.Raycast(camera.Position, camera.Forward, out s_rayHit, archBlock.CameraDamageRayLength, LayerManager.MASK_MELEE_ATTACK_TARGETS_WITH_STATIC))
+                {
+                    IDamageable damageable = s_rayHit.collider.GetComponent<IDamageable>();
+                    if (damageable == null || damageable.GetBaseDamagable().TempSearchID == DamageUtil.SearchID)
+                    {
+                        yield return null;
+                        continue;
+                    }
+                }
+
+                if (CapsuleCheckForHits(camera, archBlock, attackData, data, out var hits))
                 {
                     mws.m_targetsFound = true;
                     melee.HitsForDamage = hits;
@@ -59,16 +74,18 @@ namespace MSC.Patches
             _capsuleRoutine = null;
         }
 
-        private static bool CapsuleCheckForHits(MeleeWeaponFirstPerson melee, MeleeAttackData data, OffsetData offsetData, [MaybeNullWhen(false)] out Il2CppGeneric.List<MeleeWeaponDamageData> hits)
+        private static bool CapsuleCheckForHits(FPSCamera camera, MeleeArchetypeDataBlock archBlock, MeleeAttackData attackData, MeleeData data, [MaybeNullWhen(false)] out Il2CppGeneric.List<MeleeWeaponDamageData> hits)
         {
             hits = null;
-            Transform transform = data.m_damageRef.transform;
+            Transform transform = attackData.m_damageRef.transform;
             Vector3 transformPos = transform.position;
-            Vector3 cameraPos = melee.Owner.FPSCamera.Position;
-            float viewDot = Vector3.Dot(melee.Owner.FPSCamera.Forward, (cameraPos - transformPos).normalized);
+            Vector3 cameraPos = camera.Position;
+            float viewDot = Vector3.Dot(camera.Forward, (transformPos - cameraPos).normalized);
+            if (viewDot <= 0 && !archBlock.CanHitMultipleEnemies) return false;
 
-            float radius = offsetData.CapsuleSize(melee.MeleeArchetypeData, viewDot);
-            (Vector3 start, Vector3 end) = offsetData.CapsuleOffsets(transform, melee.MeleeArchetypeData);
+            OffsetData offsetData = data.AttackOffset;
+            float radius = offsetData.CapsuleSize(archBlock, viewDot > 0.5f ? viewDot * (data.AttackSphereCenterMod - 1f) : 0f);
+            (Vector3 start, Vector3 end) = offsetData.CapsuleOffsets(transform, archBlock);
             Collider[] colliders = Physics.OverlapCapsule(start, end, radius, LayerManager.MASK_MELEE_ATTACK_TARGETS);
             if (colliders.Length == 0) return false;
 
