@@ -44,13 +44,13 @@ namespace MSC.Utils
                 if (data?.AttackOffset.HasCapsule == true)
                 {
                     (Vector3 start, Vector3 end) = data.AttackOffset.CapsuleOffsets(melee.ModelData.m_damageRefAttack, melee.MeleeArchetypeData);
-                    DebugDraw3D.DrawSphere(start, 0.1f, start == normal ? ColorExt.Orange(0.4f) : ColorExt.Yellow(0.4f));
-                    DebugDraw3D.DrawSphere(end, 0.1f, end == normal ? ColorExt.Orange(0.4f) : ColorExt.Yellow(0.4f));
+                    DebugDraw3D.DrawSphere(start, Configuration.DebugSphereSize, start == normal ? ColorExt.Orange(0.4f) : ColorExt.Yellow(0.4f));
+                    DebugDraw3D.DrawSphere(end, Configuration.DebugSphereSize, end == normal ? ColorExt.Orange(0.4f) : ColorExt.Yellow(0.4f));
                     if (start != normal && end != normal)
-                        DebugDraw3D.DrawSphere(normal, 0.1f, ColorExt.Red(0.4f));
+                        DebugDraw3D.DrawSphere(normal, Configuration.DebugSphereSize, ColorExt.Red(0.4f));
                 }
                 else
-                    DebugDraw3D.DrawSphere(normal, 0.1f, ColorExt.Red(0.4f));
+                    DebugDraw3D.DrawSphere(normal, Configuration.DebugSphereSize, ColorExt.Red(0.4f));
             }
             _drawCoroutine = null;
         }
