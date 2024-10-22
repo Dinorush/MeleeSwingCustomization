@@ -61,9 +61,17 @@ namespace MSC.CustomMeleeData
                             );
                 }
 
-                return ( // Capsule pos -> (pos - capsule pos) direction * cam length
+                if (_capsuleOffsetEnd == null)
+                {
+                    return ( // Capsule pos -> (pos - capsule pos) direction * cam length
                         parentPos + parentRot * _capsuleOffset.Value,
                         parentPos + parentRot * (localPos - _capsuleOffset.Value).normalized * camFwdLength
+                        );
+                }
+
+                return ( // Capsule pos -> (pos - capsule pos) direction * cam length
+                        parentPos + parentRot * _capsuleOffset.Value,
+                        parentPos + parentRot * (_capsuleOffsetEnd.Value - _capsuleOffset.Value).normalized * camFwdLength
                         );
             }
 
