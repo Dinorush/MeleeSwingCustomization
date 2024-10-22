@@ -29,6 +29,7 @@ namespace MSC.JSON
 
                         var propName = reader.GetString();
                         reader.Read();
+                        if (reader.TokenType == JsonTokenType.Null) continue;
 
                         offsetData.DeserializeProperty(propName!.ToLowerInvariant().Replace(" ", null), ref reader);
                     }
