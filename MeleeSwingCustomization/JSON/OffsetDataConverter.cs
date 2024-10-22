@@ -9,11 +9,6 @@ namespace MSC.JSON
 {
     public sealed class OffsetDataConverter : JsonConverter<OffsetData>
     {
-        public const string NullStr = "Unchanged";
-        public const string NullStrLower = "unchanged";
-
-        public override bool HandleNull => false;
-
         public override OffsetData Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             OffsetData offsetData = new();
@@ -41,7 +36,7 @@ namespace MSC.JSON
 
                 case JsonTokenType.String:
                     var strValue = reader.GetString()!.Trim();
-                    if (offsetData.ParseVectorPair(strValue))
+                    if (offsetData.ParseOffsetTriplet(strValue))
                         return offsetData;
 
                     throw new JsonException($"Bad vector formats detected for OffsetData: {strValue}");

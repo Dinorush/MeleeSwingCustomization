@@ -13,6 +13,7 @@ namespace MSC.CustomMeleeData
         public Vector3 Offset { get => _offset!.Value; set => _offset = value; }
 
         public Vector3? _capsuleOffset = null;
+        public Vector3? _capsuleOffsetEnd = null;
         private bool _capsuleUseCamFwd = false;
         private float _capsuleCamFwdAdd = 0f;
         private float _capsuleSize = -1f;
@@ -46,37 +47,31 @@ namespace MSC.CustomMeleeData
 
         public (Vector3 start, Vector3 end) CapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data)
         {
-            Vector3 start;
-            Vector3 end;
             Vector3 localPos = transform.localPosition;
+            Vector3 parentPos = transform.parent.position;
+            Quaternion parentRot = transform.parent.rotation;
             if (_capsuleUseCamFwd)
             {
                 float camFwdLength = _capsuleCamFwdAdd + data.CameraDamageRayLength;
                 
                 if (_capsuleOffset == null)
                 {
-                    transform.localPosition = Vector3.zero;
-                    start = transform.position;
-                    transform.localPosition = localPos.normalized * camFwdLength;
-                    end = transform.position;
+                    return ( // Zero pos -> pos direction * cam length
+                            parentPos,
+                            parentPos + parentRot * localPos.normalized * camFwdLength
+                            );
                 }
-                else
-                {
-                    transform.localPosition = _capsuleOffset.Value;
-                    start = transform.position;
-                    transform.localPosition = (localPos - _capsuleOffset.Value).normalized * camFwdLength;
-                    end = transform.position;
-                }
-            }
-            else
-            {
-                end = transform.position;
-                transform.localPosition = _capsuleOffset!.Value;
-                start = transform.position;
+
+                return ( // Capsule pos -> (pos - capsule pos) direction * cam length
+                        parentPos + parentRot * _capsuleOffset.Value,
+                        parentPos + parentRot * (localPos - _capsuleOffset.Value).normalized * camFwdLength
+                        );
             }
 
-            transform.localPosition = localPos;
-            return (start, end);
+            return ( // Capsule pos -> capsule pos end if exists, otherwise pos
+                    parentPos + parentRot * _capsuleOffset!.Value,
+                    _capsuleOffsetEnd != null ? parentPos + parentRot * _capsuleOffsetEnd.Value : transform.position
+                    );
         }
 
         public void Serialize(Utf8JsonWriter writer)
@@ -121,10 +116,10 @@ namespace MSC.CustomMeleeData
             {
                 case "offsets":
                 case "offset":
-                    ParseVectorPair(reader.GetString()!.Trim());
+                    ParseOffsetTriplet(reader.GetString()!.Trim());
                     break;
                 case "capsuleoffset":
-                    _capsuleOffset = MSCJson.Deserialize<Vector3?>(ref reader);
+                    ParseCapsuleOffset(reader.GetString()!.Trim());
                     break;
                 case "capsuleusecamfwd":
                     _capsuleUseCamFwd = reader.GetBoolean();
@@ -136,41 +131,51 @@ namespace MSC.CustomMeleeData
                     _capsuleSize = reader.GetSingle();
                     break;
                 case "capsuleusecentermod":
-                    _capsuleUseCamFwd = reader.GetBoolean();
+                    _capsuleUseCenterMod = reader.GetBoolean();
                     break;
             }
         }
 
-        public bool ParseVectorPair(string text)
+        public bool ParseOffsetTriplet(string text)
         {
-            if (TryParseVector3Pair(text, out var vectors))
+            if (TryParseVector3OffsetTriplet(text, out var vectors))
             {
                 _offset = vectors.Item1;
                 _capsuleOffset = vectors.Item2;
+                _capsuleOffsetEnd = vectors.Item3;
                 return true;
             }
             return false;
         }
 
-        public static bool TryParseVector3Pair(string input, out (Vector3?, Vector3?) vectors)
+        private bool ParseCapsuleOffset(string text)
+        {
+            if (TryParseVector3OffsetTriplet(text, out var vectors))
+            {
+                _capsuleOffset = vectors.Item1;
+                _capsuleOffsetEnd = vectors.Item2;
+                return true;
+            }
+            return false;
+        }
+
+        public static bool TryParseVector3OffsetTriplet(string input, out (Vector3?, Vector3?, Vector3?) vectors)
         {
             if (!RegexUtil.TryParseVectorString(input, out var array))
             {
-                vectors = (null, null);
+                vectors = (null, null, null);
                 return false;
             }
 
             if (array.Length < 3)
             {
-                vectors = (null, null);
+                vectors = (null, null, null);
                 return false;
             }
 
             vectors.Item1 = new Vector3(array[0], array[1], array[2]);
-            if (array.Length >= 6)
-                vectors.Item2 = new Vector3(array[3], array[4], array[5]);
-            else
-                vectors.Item2 = null;
+            vectors.Item2 = array.Length >= 6 ? new Vector3(array[3], array[4], array[5]) : null;
+            vectors.Item3 = array.Length >= 9 ? new Vector3(array[6], array[7], array[8]) : null;
 
             return true;
         }
