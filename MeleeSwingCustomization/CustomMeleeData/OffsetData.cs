@@ -41,7 +41,7 @@ namespace MSC.CustomMeleeData
         public float CapsuleSize(MeleeArchetypeDataBlock data, float dotScale = 0)
         {
             float size = _capsuleSize > 0 ? _capsuleSize : data.AttackSphereRadius;
-            return size * (1f + dotScale);
+            return _capsuleUseCenterMod ? size * (1f + dotScale) : size;
         }
 
         public (Vector3 start, Vector3 end) CapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data)
