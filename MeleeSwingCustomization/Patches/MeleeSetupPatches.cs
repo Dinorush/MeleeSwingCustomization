@@ -1,19 +1,21 @@
 ﻿using Gear;
 using HarmonyLib;
 using MSC.CustomMeleeData;
+using MSC.Utils;
+using System;
 
 namespace MSC.Patches
 {
-    [HarmonyPatch]
-    internal static class MeleePatches
+    [HarmonyPatch(typeof(MeleeWeaponFirstPerson))]
+    internal static class MeleeSetupPatches
     {
         private const string BatPrefab = "Assets/AssetPrefabs/Items/Melee/MeleeWeaponFirstPersonBat.prefab";
         private readonly static MeleeData ImprovedBatData = new()
         {
-            AttackOffset = new() { x = 0, y = 0.55f, z = 0.0f }
+            AttackOffset = new(0, 0.55f, 0.0f)
         };
 
-        [HarmonyPatch(typeof(MeleeWeaponFirstPerson), nameof(MeleeWeaponFirstPerson.SetupMeleeAnimations))]
+        [HarmonyPatch(nameof(MeleeWeaponFirstPerson.SetupMeleeAnimations))]
         [HarmonyWrapSafe]
         [HarmonyPostfix]
         private static void Post_MeleeSetup(MeleeWeaponFirstPerson __instance)
@@ -22,14 +24,16 @@ namespace MSC.Patches
             {
                 var prefabs = __instance.ItemDataBlock.FirstPersonPrefabs;
                 if (prefabs?.Count > 0 && prefabs[0] == BatPrefab)
-                    __instance.ModelData.m_damageRefAttack.localPosition = ImprovedBatData.AttackOffset!.Value;
+                    __instance.ModelData.m_damageRefAttack.localPosition = ImprovedBatData.AttackOffset.Offset;
             }
+
+            DebugUtil.DrawDebugSpheres(__instance);
         }
 
         private static MWS_AttackLight? _lightLeft;
         private static MWS_AttackLight? _lightRight;
-        private static int _cachedID = 0;
-        [HarmonyPatch(typeof(MeleeWeaponFirstPerson), nameof(MeleeWeaponFirstPerson.ChangeState))]
+        private static IntPtr _cachedPtr = IntPtr.Zero;
+        [HarmonyPatch(nameof(MeleeWeaponFirstPerson.ChangeState))]
         [HarmonyWrapSafe]
         [HarmonyPostfix]
         private static void Post_MeleeChangeState(MeleeWeaponFirstPerson __instance, eMeleeWeaponState newState)
@@ -37,8 +41,9 @@ namespace MSC.Patches
             MeleeData? data = MeleeDataManager.Current.GetData(__instance.MeleeArchetypeData.persistentID);
             if (data == null) return;
 
-            if (_cachedID != __instance.GetInstanceID())
+            if (_cachedPtr != __instance.Pointer)
             {
+                _cachedPtr = __instance.Pointer;
                 _lightLeft = __instance.m_states[(int)eMeleeWeaponState.AttackMissLeft].TryCast<MWS_AttackLight>()!;
                 _lightRight = __instance.m_states[(int)eMeleeWeaponState.AttackMissRight].TryCast<MWS_AttackLight>()!;
             }

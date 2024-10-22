@@ -107,7 +107,10 @@ namespace MSC.CustomMeleeData
             for (int i = _listeners.Count - 1; i >= 0; --i)
             {
                 if (_listeners[i] != null)
+                {
                     SetMeleeData(_listeners[i]);
+                    DebugUtil.DrawDebugSpheres(_listeners[i]);
+                }
                 else
                     _listeners.RemoveAt(i);
             }
@@ -168,6 +171,7 @@ namespace MSC.CustomMeleeData
             return SetMeleeData(melee);
         }
 
+        public bool HasData(uint id) => _idToData.ContainsKey(id);
         public MeleeData? GetData(uint id) => _idToData.GetValueOrDefault(id);
 
         private void CacheData(MeleeWeaponFirstPerson melee)
@@ -178,7 +182,7 @@ namespace MSC.CustomMeleeData
             MeleeData cachedData = new()
             {
                 ArchetypeID = id,
-                AttackOffset = melee.ModelData.m_damageRefAttack.position,
+                AttackOffset = new(melee.ModelData.m_damageRefAttack.position),
                 PushOffset = melee.ModelData.m_damageRefPush.position
             };
             _cachedData.Add(id, cachedData);
@@ -190,8 +194,8 @@ namespace MSC.CustomMeleeData
         {
             if (!_idToData.TryGetValue(id, out var customData) || !_cachedData.TryGetValue(id, out var cachedData)) return;
 
-            if (customData.AttackOffset == null)
-                customData.AttackOffset = cachedData.AttackOffset;
+            if (!customData.AttackOffset.HasOffset)
+                customData.AttackOffset.Offset = cachedData.AttackOffset.Offset;
             if (customData.PushOffset == null)
                 customData.PushOffset = cachedData.PushOffset;
         }
@@ -217,15 +221,17 @@ namespace MSC.CustomMeleeData
             Transform refPush = melee.ModelData.m_damageRefPush;
             if (_idToData.TryGetValue(id, out var customData))
             {
-                refAttack.localPosition = customData.AttackOffset!.Value;
+                refAttack.localPosition = customData.AttackOffset.Offset;
                 refPush.localPosition = customData.PushOffset!.Value;
+                melee.m_attackDamageSphereDotScale = customData.AttackSphereCenterMod - 1f;
                 SetMeleeAttackTimings(melee, customData);
                 return true;
             }
             else
             {
-                refAttack.localPosition = cachedData.AttackOffset!.Value;
+                refAttack.localPosition = cachedData.AttackOffset.Offset;
                 refPush.localPosition = cachedData.PushOffset!.Value;
+                melee.m_attackDamageSphereDotScale = cachedData.AttackSphereCenterMod - 1f;
                 SetMeleeAttackTimings(melee, cachedData);
                 return false;
             }

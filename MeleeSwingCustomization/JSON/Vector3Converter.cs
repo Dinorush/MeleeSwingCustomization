@@ -8,9 +8,6 @@ namespace MSC.JSON
 {
     public sealed class Vector3Converter : JsonConverter<Vector3?>
     {
-        public const string NullStr = "Unchanged";
-        public const string NullStrLower = "unchanged";
-
         public override bool HandleNull => false;
 
         public override Vector3? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -63,12 +60,6 @@ namespace MSC.JSON
 
         private static bool TryParseVector3(string input, out Vector3? vector)
         {
-            if (input.ToLowerInvariant() == NullStrLower)
-            {
-                vector = null;
-                return true;
-            }
-
             if (!RegexUtil.TryParseVectorString(input, out var array))
             {
                 vector = Vector3.zero;
@@ -88,7 +79,7 @@ namespace MSC.JSON
         public override void Write(Utf8JsonWriter writer, Vector3? value, JsonSerializerOptions options)
         {
             if (value == null)
-                writer.WriteStringValue(NullStr);
+                writer.WriteNullValue();
             else
                 writer.WriteStringValue(string.Format("({0} {1} {2})", value.Value.x, value.Value.y, value.Value.z));
         }

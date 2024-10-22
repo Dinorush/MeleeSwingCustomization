@@ -13,7 +13,7 @@ namespace MSC.JSON
             IncludeFields = true,
             PropertyNameCaseInsensitive = true,
             WriteIndented = true,
-            IgnoreReadOnlyProperties = true,
+            IgnoreReadOnlyProperties = true
         };
 
         static MSCJson()
@@ -21,11 +21,17 @@ namespace MSC.JSON
             _setting.Converters.Add(new JsonStringEnumConverter());
             _setting.Converters.Add(new LocalizedTextConverter());
             _setting.Converters.Add(new Vector3Converter());
+            _setting.Converters.Add(new OffsetDataConverter());
         }
 
         public static T? Deserialize<T>(string json)
         {
             return JsonSerializer.Deserialize<T>(json, _setting);
+        }
+
+        public static T? Deserialize<T>(ref Utf8JsonReader reader)
+        {
+            return JsonSerializer.Deserialize<T>(ref reader, _setting);
         }
 
         public static object? Deserialize(Type type, string json)
@@ -36,6 +42,10 @@ namespace MSC.JSON
         public static string Serialize<T>(T value)
         {
             return JsonSerializer.Serialize(value, _setting);
+        }
+        public static void Serialize<T>(T value, Utf8JsonWriter writer)
+        {
+            JsonSerializer.Serialize(writer, value, _setting);
         }
     }
 }
