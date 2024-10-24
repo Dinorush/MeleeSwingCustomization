@@ -182,8 +182,8 @@ namespace MSC.CustomMeleeData
             MeleeData cachedData = new()
             {
                 ArchetypeID = id,
-                AttackOffset = new(melee.ModelData.m_damageRefAttack.position),
-                PushOffset = melee.ModelData.m_damageRefPush.position
+                AttackOffset = new(melee.ModelData.m_damageRefAttack.localPosition),
+                PushOffset = melee.ModelData.m_damageRefPush.localPosition
             };
             _cachedData.Add(id, cachedData);
 
