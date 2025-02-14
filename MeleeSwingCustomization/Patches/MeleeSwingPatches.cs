@@ -31,7 +31,7 @@ namespace MSC.Patches
         [HarmonyPatch(nameof(MWS_AttackSwingBase.Exit))]
         [HarmonyWrapSafe]
         [HarmonyPostfix]
-        private static void Post_MeleeExit(MWS_AttackSwingBase __instance)
+        private static void Post_MeleeExit()
         {
             if (_capsuleRoutine != null)
             {
@@ -52,21 +52,17 @@ namespace MSC.Patches
             while (Clock.Time < endTime && mws != null && !mws.m_targetsFound && camera != null)
             {
                 // Abort if we're looking directly at something
-                if (Physics.Raycast(camera.Position, camera.Forward, out s_rayHit, archBlock.CameraDamageRayLength, LayerManager.MASK_MELEE_ATTACK_TARGETS_WITH_STATIC))
+                if (!archBlock.CanHitMultipleEnemies && Physics.Raycast(camera.Position, camera.Forward, out s_rayHit, archBlock.CameraDamageRayLength, LayerManager.MASK_MELEE_ATTACK_TARGETS_WITH_STATIC))
                 {
-                    IDamageable damageable = s_rayHit.collider.GetComponent<IDamageable>();
-                    if (damageable == null || damageable.GetBaseDamagable().TempSearchID == DamageUtil.SearchID)
-                    {
-                        yield return null;
-                        continue;
-                    }
+                    yield return null;
+                    continue;
                 }
 
                 if (CapsuleCheckForHits(camera, archBlock, attackData, data, out var hits))
                 {
                     mws.m_targetsFound = true;
                     melee.HitsForDamage = hits;
-                    mws.OnAttackHit();
+                    mws.OnAttackHit(); // Ends this coroutine via patch
                 }
                 else
                     yield return null;
