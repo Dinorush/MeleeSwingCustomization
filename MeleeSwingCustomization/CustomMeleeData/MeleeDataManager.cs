@@ -27,7 +27,7 @@ namespace MSC.CustomMeleeData
 
         private void FileChanged(LiveEditEventArgs e)
         {
-            DinoLogger.Warning($"LiveEdit File Changed: {e.FullPath}");
+            DinoLogger.Warning($"LiveEdit File Changed: {e.FileName}");
             LiveEdit.TryReadFileContent(e.FullPath, (content) =>
             {
                 ReadFileContent(e.FullPath, content);
@@ -37,7 +37,7 @@ namespace MSC.CustomMeleeData
 
         private void FileDeleted(LiveEditEventArgs e)
         {
-            DinoLogger.Warning($"LiveEdit File Removed: {e.FullPath}");
+            DinoLogger.Warning($"LiveEdit File Removed: {e.FileName}");
 
             RemoveFile(e.FullPath);
             PrintCustomIDs();
@@ -45,7 +45,7 @@ namespace MSC.CustomMeleeData
 
         private void FileCreated(LiveEditEventArgs e)
         {
-            DinoLogger.Warning($"LiveEdit File Created: {e.FullPath}");
+            DinoLogger.Warning($"LiveEdit File Created: {e.FileName}");
             LiveEdit.TryReadFileContent(e.FullPath, (content) =>
             {
                 ReadFileContent(e.FullPath, content);
@@ -64,7 +64,7 @@ namespace MSC.CustomMeleeData
             }
             catch (JsonException ex)
             {
-                DinoLogger.Error($"Error parsing json " + file);
+                DinoLogger.Error($"Error parsing json " + Path.GetFileName(file));
                 DinoLogger.Error(ex.Message);
             }
             if (dataList == null) return;
@@ -137,7 +137,7 @@ namespace MSC.CustomMeleeData
             string basePath = Path.Combine(MTFOWrapper.CustomPath, EntryPoint.MODNAME);
             if (!Directory.Exists(basePath))
             {
-                DinoLogger.Log($"No directory detected. Creating {basePath}/Template.json");
+                DinoLogger.Log($"No directory detected. Creating template.");
                 Directory.CreateDirectory(basePath);
                 var file = File.CreateText(Path.Combine(basePath, "Template.json"));
                 file.WriteLine(MSCJson.Serialize(new List<MeleeData>(MeleeDataTemplate.Template)));
@@ -145,7 +145,7 @@ namespace MSC.CustomMeleeData
                 file.Close();
             }
             else
-                DinoLogger.Log($"Directory detected. {basePath}");
+                DinoLogger.Log($"Directory detected.");
 
             foreach (string confFile in Directory.EnumerateFiles(basePath, "*.json", SearchOption.AllDirectories))
             {
