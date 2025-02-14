@@ -6,7 +6,8 @@ using MSC.Dependencies;
 
 namespace MSC
 {
-    [BepInPlugin("Dinorush." + MODNAME, MODNAME, "1.1.1")]
+    [BepInPlugin("Dinorush." + MODNAME, MODNAME, "1.1.2")]
+    [BepInDependency("dev.gtfomodding.gtfo-api", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency(MTFOWrapper.GUID, BepInDependency.DependencyFlags.SoftDependency)]
     internal sealed class EntryPoint : BasePlugin
     {
@@ -14,7 +15,6 @@ namespace MSC
 
         public override void Load()
         {
-            Log.LogMessage("Loading " + MODNAME);
             Configuration.Init();
             MeleeDataManager.Current.Init();
             new Harmony(MODNAME).PatchAll();
