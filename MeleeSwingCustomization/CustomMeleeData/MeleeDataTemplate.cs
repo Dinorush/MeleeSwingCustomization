@@ -42,7 +42,7 @@
             {
                 ArchetypeID = 0,
                 Name = "Improved Spear",
-                AttackOffset = new((new(0, 0.972f, -0.002f), new(0, -0.2f, 0)))
+                AttackOffset = new((new(0, 0.972f, -0.002f), new(0, -0.2f, 0))) { CapsuleDelay = 0.1f }
             }
         };
     }

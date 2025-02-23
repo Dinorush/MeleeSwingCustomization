@@ -1,6 +1,8 @@
 ﻿using GameData;
+using Gear;
 using MSC.JSON;
 using MSC.Utils;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 using UnityEngine;
@@ -12,12 +14,14 @@ namespace MSC.CustomMeleeData
         private Vector3? _offset = null;
         public Vector3 Offset { get => _offset!.Value; set => _offset = value; }
 
-        public Vector3? _capsuleOffset = null;
-        public Vector3? _capsuleOffsetEnd = null;
-        private bool _capsuleUseCamFwd = false;
-        private float _capsuleCamFwdAdd = 0f;
-        private float _capsuleSize = 0f;
-        private bool _capsuleUseCenterMod = false;
+        public Vector3? CapsuleOffset { get; set; } = null;
+        public Vector3? CapsuleOffsetEnd { get; set; } = null;
+        public bool CapsuleUseCamFwd { get; set; } = false;
+        public float CapsuleCamFwdAdd { get; set; } = 0f;
+        public float CapsuleSize { get; set; } = 0f;
+        public bool CapsuleUseCenterMod { get; set; } = false;
+        public float CapsuleDelay { get; set; } = 0f;
+        public Dictionary<eMeleeWeaponState, float>? CapsuleStateDelay { get; private set; } = null;
 
         public OffsetData(Vector3? offset = null)
         {
@@ -32,28 +36,36 @@ namespace MSC.CustomMeleeData
         public OffsetData((Vector3?, Vector3?) offsets)
         {
             _offset = offsets.Item1;
-            _capsuleOffset = offsets.Item2;
+            CapsuleOffset = offsets.Item2;
         }
 
         public bool HasOffset => _offset != null;
-        public bool HasCapsule => _capsuleUseCamFwd || _capsuleOffset != null;
+        public bool HasCapsule => CapsuleUseCamFwd || CapsuleOffset != null;
 
-        public float CapsuleSize(MeleeArchetypeDataBlock data, float dotScale = 0)
+        public float GetCapsuleDelay(eMeleeWeaponState state)
         {
-            float size = _capsuleSize > 0 ? _capsuleSize : data.AttackSphereRadius;
-            return _capsuleUseCenterMod ? size * (1f + dotScale) : size;
+            float delay = CapsuleDelay;
+            if (CapsuleStateDelay != null && CapsuleStateDelay.ContainsKey(state))
+                delay = CapsuleStateDelay[state];
+            return delay;
         }
 
-        public (Vector3 start, Vector3 end) CapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data)
+        public float GetCapsuleSize(MeleeArchetypeDataBlock data, float dotScale = 0)
+        {
+            float size = CapsuleSize > 0 ? CapsuleSize : data.AttackSphereRadius;
+            return CapsuleUseCenterMod ? size * (1f + dotScale) : size;
+        }
+
+        public (Vector3 start, Vector3 end) GetCapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data)
         {
             Vector3 localPos = transform.localPosition;
             Vector3 parentPos = transform.parent.position;
             Quaternion parentRot = transform.parent.rotation;
-            if (_capsuleUseCamFwd)
+            if (CapsuleUseCamFwd)
             {
-                float camFwdLength = _capsuleCamFwdAdd + data.CameraDamageRayLength;
+                float camFwdLength = CapsuleCamFwdAdd + data.CameraDamageRayLength;
                 
-                if (_capsuleOffset == null)
+                if (CapsuleOffset == null)
                 {
                     return ( // Zero pos -> pos direction * cam length
                             parentPos,
@@ -61,23 +73,23 @@ namespace MSC.CustomMeleeData
                             );
                 }
 
-                if (_capsuleOffsetEnd == null)
+                if (CapsuleOffsetEnd == null)
                 {
                     return ( // Capsule pos -> (pos - capsule pos) direction * cam length
-                        parentPos + parentRot * _capsuleOffset.Value,
-                        parentPos + parentRot * (localPos - _capsuleOffset.Value).normalized * camFwdLength
+                        parentPos + parentRot * CapsuleOffset.Value,
+                        parentPos + parentRot * (localPos - CapsuleOffset.Value).normalized * camFwdLength
                         );
                 }
 
                 return ( // Capsule pos -> (pos - capsule pos) direction * cam length
-                        parentPos + parentRot * _capsuleOffset.Value,
-                        parentPos + parentRot * (_capsuleOffsetEnd.Value - _capsuleOffset.Value).normalized * camFwdLength
+                        parentPos + parentRot * CapsuleOffset.Value,
+                        parentPos + parentRot * (CapsuleOffsetEnd.Value - CapsuleOffset.Value).normalized * camFwdLength
                         );
             }
 
             return ( // Capsule pos -> capsule pos end if exists, otherwise pos
-                    parentPos + parentRot * _capsuleOffset!.Value,
-                    _capsuleOffsetEnd != null ? parentPos + parentRot * _capsuleOffsetEnd.Value : transform.position
+                    parentPos + parentRot * CapsuleOffset!.Value,
+                    CapsuleOffsetEnd != null ? parentPos + parentRot * CapsuleOffsetEnd.Value : transform.position
                     );
         }
 
@@ -89,7 +101,7 @@ namespace MSC.CustomMeleeData
                 return;
             }
 
-            if (_capsuleOffset == null)
+            if (CapsuleOffset == null)
             {
                 MSCJson.Serialize(_offset, writer);
                 return;
@@ -100,34 +112,33 @@ namespace MSC.CustomMeleeData
             if (_offset != null)
             {
                 StringBuilder builder = new(MSCJson.Serialize(_offset)[1..^1]);
-                if (_capsuleOffset != null)
-                    builder.Append(" " + MSCJson.Serialize(_capsuleOffset)[1..^1]);
-                if (_capsuleOffsetEnd != null)
-                    builder.Append(" " + MSCJson.Serialize(_capsuleOffsetEnd)[1..^1]);
+                if (CapsuleOffset != null)
+                    builder.Append(" " + MSCJson.Serialize(CapsuleOffset)[1..^1]);
+                if (CapsuleOffsetEnd != null)
+                    builder.Append(" " + MSCJson.Serialize(CapsuleOffsetEnd)[1..^1]);
                 writer.WriteStringValue(builder.ToString());
             }
             else
                 writer.WriteNullValue();
 
-            writer.WritePropertyName(PrettyName(nameof(_capsuleOffset)));
-            if (_capsuleOffset != null && _offset == null)
+            writer.WritePropertyName(nameof(CapsuleOffset));
+            if (CapsuleOffset != null && _offset == null)
             {
-                StringBuilder builder = new(MSCJson.Serialize(_capsuleOffset)[1..^1]);
-                if (_capsuleOffsetEnd != null)
-                    builder.Append(" " + MSCJson.Serialize(_capsuleOffsetEnd)[1..^1]);
+                StringBuilder builder = new(MSCJson.Serialize(CapsuleOffset)[1..^1]);
+                if (CapsuleOffsetEnd != null)
+                    builder.Append(" " + MSCJson.Serialize(CapsuleOffsetEnd)[1..^1]);
                 writer.WriteStringValue(builder.ToString());
             }
             else
                 writer.WriteNullValue();
 
-            writer.WriteBoolean(PrettyName(nameof(_capsuleUseCamFwd)), _capsuleUseCamFwd);
-            writer.WriteNumber(PrettyName(nameof(_capsuleCamFwdAdd)), _capsuleCamFwdAdd);
-            writer.WriteNumber(PrettyName(nameof(_capsuleSize)), _capsuleSize);
-            writer.WriteBoolean(PrettyName(nameof(_capsuleUseCenterMod)), _capsuleUseCenterMod);
+            writer.WriteBoolean(nameof(CapsuleUseCamFwd), CapsuleUseCamFwd);
+            writer.WriteNumber(nameof(CapsuleCamFwdAdd), CapsuleCamFwdAdd);
+            writer.WriteNumber(nameof(CapsuleSize), CapsuleSize);
+            writer.WriteBoolean(nameof(CapsuleUseCenterMod), CapsuleUseCenterMod);
+            writer.WriteNumber(nameof(CapsuleDelay), CapsuleDelay);
             writer.WriteEndObject();
         }
-
-        private static string PrettyName(string name) => char.ToUpper(name[1]) + name[2..];
 
         public void DeserializeProperty(string propertyName, ref Utf8JsonReader reader)
         {
@@ -141,16 +152,19 @@ namespace MSC.CustomMeleeData
                     ParseCapsuleOffset(reader.GetString()!.Trim());
                     break;
                 case "capsuleusecamfwd":
-                    _capsuleUseCamFwd = reader.GetBoolean();
+                    CapsuleUseCamFwd = reader.GetBoolean();
                     break;
                 case "capsulecamfwdadd":
-                    _capsuleCamFwdAdd = reader.GetSingle();
+                    CapsuleCamFwdAdd = reader.GetSingle();
                     break;
                 case "capsulesize":
-                    _capsuleSize = reader.GetSingle();
+                    CapsuleSize = reader.GetSingle();
                     break;
                 case "capsuleusecentermod":
-                    _capsuleUseCenterMod = reader.GetBoolean();
+                    CapsuleUseCenterMod = reader.GetBoolean();
+                    break;
+                case "capsuledelay":
+                    ParseDamageDelays(ref reader);
                     break;
             }
         }
@@ -160,8 +174,8 @@ namespace MSC.CustomMeleeData
             if (TryParseVector3OffsetTriplet(text, out var vectors))
             {
                 _offset = vectors.Item1;
-                _capsuleOffset = vectors.Item2;
-                _capsuleOffsetEnd = vectors.Item3;
+                CapsuleOffset = vectors.Item2;
+                CapsuleOffsetEnd = vectors.Item3;
                 return true;
             }
             return false;
@@ -171,8 +185,8 @@ namespace MSC.CustomMeleeData
         {
             if (TryParseVector3OffsetTriplet(text, out var vectors))
             {
-                _capsuleOffset = vectors.Item1;
-                _capsuleOffsetEnd = vectors.Item2;
+                CapsuleOffset = vectors.Item1;
+                CapsuleOffsetEnd = vectors.Item2;
                 return true;
             }
             return false;
@@ -197,6 +211,56 @@ namespace MSC.CustomMeleeData
             vectors.Item3 = array.Length >= 9 ? new Vector3(array[6], array[7], array[8]) : null;
 
             return true;
+        }
+
+        // Returns true if parsing a state dictionary
+        public bool ParseDamageDelays(ref Utf8JsonReader reader)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                CapsuleDelay = reader.GetSingle();
+                return false;
+            }
+            else if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                CapsuleStateDelay = new();
+                while(reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.EndObject) return true;
+
+                    if (reader.TokenType != JsonTokenType.PropertyName) return false;
+
+                    string state = reader.GetString()!.ToLowerInvariant().Replace(" ", null);
+                    reader.Read();
+                    if (reader.TokenType != JsonTokenType.Number) return false;
+                    float delay = reader.GetSingle();
+                    switch (state)
+                    {
+                        case "light":
+                            CapsuleStateDelay[eMeleeWeaponState.AttackMissLeft] = delay;
+                            CapsuleStateDelay[eMeleeWeaponState.AttackMissRight] = delay;
+                            break;
+                        case "charged":
+                            CapsuleStateDelay[eMeleeWeaponState.AttackChargeReleaseLeft] = delay;
+                            CapsuleStateDelay[eMeleeWeaponState.AttackChargeReleaseRight] = delay;
+                            break;
+                        case "lightleft" or "attackmissleft":
+                            CapsuleStateDelay[eMeleeWeaponState.AttackMissLeft] = delay;
+                            break;
+                        case "lightright" or "attackmissright":
+                            CapsuleStateDelay[eMeleeWeaponState.AttackMissRight] = delay;
+                            break;
+                        case "chargedleft" or "attackchargereleaseleft":
+                            CapsuleStateDelay[eMeleeWeaponState.AttackChargeReleaseLeft] = delay;
+                            break;
+                        case "chargedright" or "attackchargereleaseright":
+                            CapsuleStateDelay[eMeleeWeaponState.AttackChargeReleaseRight] = delay;
+                            break;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

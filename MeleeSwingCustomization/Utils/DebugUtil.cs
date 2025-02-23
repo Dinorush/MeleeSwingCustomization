@@ -43,7 +43,7 @@ namespace MSC.Utils
                 Vector3 normal = melee.ModelData.m_damageRefAttack.position;
                 if (data?.AttackOffset.HasCapsule == true)
                 {
-                    (Vector3 start, Vector3 end) = data.AttackOffset.CapsuleOffsets(melee.ModelData.m_damageRefAttack, melee.MeleeArchetypeData);
+                    (Vector3 start, Vector3 end) = data.AttackOffset.GetCapsuleOffsets(melee.ModelData.m_damageRefAttack, melee.MeleeArchetypeData);
                     DebugDraw3D.DrawSphere(start, Configuration.DebugSphereSize, start == normal ? ColorExt.Orange(0.4f) : ColorExt.Yellow(0.4f));
                     DebugDraw3D.DrawSphere(end, Configuration.DebugSphereSize, end == normal ? ColorExt.Orange(0.4f) : ColorExt.Yellow(0.4f));
                     if (start != normal && end != normal)

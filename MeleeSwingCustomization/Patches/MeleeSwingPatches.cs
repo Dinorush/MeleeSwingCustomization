@@ -44,8 +44,13 @@ namespace MSC.Patches
         private static IEnumerator CapsuleHitDetection(MeleeWeaponFirstPerson melee, MWS_AttackSwingBase mws, MeleeData data)
         {
             MeleeAttackData attackData = mws.AttackData;
-            float endTime = Clock.Time + attackData.m_damageEndTime;
-            yield return new WaitForSeconds(attackData.m_damageStartTime);
+            float startTime = Clock.Time;
+            float endTime = startTime + attackData.m_damageEndTime;
+            // Wait for weapon to change state
+            yield return null;
+            float delay = attackData.m_damageStartTime + data.AttackOffset.GetCapsuleDelay(melee.CurrentStateName) - (Clock.Time - startTime);
+            if (delay > 0)
+                yield return new WaitForSeconds(delay);
 
             MeleeArchetypeDataBlock archBlock = melee.MeleeArchetypeData;
             FPSCamera camera = melee.Owner.FPSCamera;
@@ -80,8 +85,8 @@ namespace MSC.Patches
             if (viewDot <= 0 && !archBlock.CanHitMultipleEnemies) return false;
 
             OffsetData offsetData = data.AttackOffset;
-            float radius = offsetData.CapsuleSize(archBlock, viewDot > 0.5f ? viewDot * (data.AttackSphereCenterMod - 1f) : 0f);
-            (Vector3 start, Vector3 end) = offsetData.CapsuleOffsets(transform, archBlock);
+            float radius = offsetData.GetCapsuleSize(archBlock, viewDot > 0.5f ? viewDot * (data.AttackSphereCenterMod - 1f) : 0f);
+            (Vector3 start, Vector3 end) = offsetData.GetCapsuleOffsets(transform, archBlock);
             Collider[] colliders = Physics.OverlapCapsule(start, end, radius, LayerManager.MASK_MELEE_ATTACK_TARGETS);
             if (colliders.Length == 0) return false;
 
