@@ -6,7 +6,7 @@ using MSC.Dependencies;
 
 namespace MSC
 {
-    [BepInPlugin("Dinorush." + MODNAME, MODNAME, "1.1.2")]
+    [BepInPlugin("Dinorush." + MODNAME, MODNAME, "1.2.0")]
     [BepInDependency("dev.gtfomodding.gtfo-api", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency(MTFOWrapper.GUID, BepInDependency.DependencyFlags.SoftDependency)]
     internal sealed class EntryPoint : BasePlugin
