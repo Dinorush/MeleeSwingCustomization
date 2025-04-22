@@ -9,24 +9,12 @@ namespace MSC.Patches
     [HarmonyPatch(typeof(MeleeWeaponFirstPerson))]
     internal static class MeleeSetupPatches
     {
-        private const string BatPrefab = "Assets/AssetPrefabs/Items/Melee/MeleeWeaponFirstPersonBat.prefab";
-        private readonly static MeleeData ImprovedBatData = new()
-        {
-            AttackOffset = new(0, 0.55f, 0.0f)
-        };
-
         [HarmonyPatch(nameof(MeleeWeaponFirstPerson.SetupMeleeAnimations))]
         [HarmonyWrapSafe]
         [HarmonyPostfix]
         private static void Post_MeleeSetup(MeleeWeaponFirstPerson __instance)
         {
-            if (!MeleeDataManager.Current.RegisterMelee(__instance) && Configuration.ImproveBatHitbox)
-            {
-                var prefabs = __instance.ItemDataBlock.FirstPersonPrefabs;
-                if (prefabs?.Count > 0 && prefabs[0] == BatPrefab)
-                    __instance.ModelData.m_damageRefAttack.localPosition = ImprovedBatData.AttackOffset.Offset;
-            }
-
+            MeleeDataManager.Current.RegisterMelee(__instance);
             DebugUtil.DrawDebugSpheres(__instance);
         }
 
@@ -38,7 +26,7 @@ namespace MSC.Patches
         [HarmonyPostfix]
         private static void Post_MeleeChangeState(MeleeWeaponFirstPerson __instance, eMeleeWeaponState newState)
         {
-            MeleeData? data = MeleeDataManager.Current.GetData(__instance.MeleeArchetypeData.persistentID);
+            MeleeData? data = MeleeDataManager.Current.GetData(__instance);
             if (data == null) return;
 
             if (_cachedPtr != __instance.Pointer)

@@ -21,22 +21,18 @@ namespace MSC.CustomMeleeData
         public float CapsuleSize { get; set; } = 0f;
         public bool CapsuleUseCenterMod { get; set; } = false;
         public float CapsuleDelay { get; set; } = 0f;
-        public Dictionary<eMeleeWeaponState, float>? CapsuleStateDelay { get; private set; } = null;
+        public Dictionary<eMeleeWeaponState, float>? CapsuleStateDelay { get; set; } = null;
 
-        public OffsetData(Vector3? offset = null)
+        public OffsetData(Vector3? offset = null, Vector3? capsuleOffset = null, Vector3? capsuleOffsetEnd = null)
         {
             _offset = offset;
+            CapsuleOffset = capsuleOffset;
+            CapsuleOffsetEnd = capsuleOffsetEnd;
         }
 
         public OffsetData(float x, float y, float z)
         {
             _offset = new(x, y, z);
-        }
-
-        public OffsetData((Vector3?, Vector3?) offsets)
-        {
-            _offset = offsets.Item1;
-            CapsuleOffset = offsets.Item2;
         }
 
         public bool HasOffset => _offset != null;

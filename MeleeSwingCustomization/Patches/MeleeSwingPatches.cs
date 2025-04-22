@@ -22,7 +22,7 @@ namespace MSC.Patches
         private static void Post_MeleeEnter(MWS_AttackSwingBase __instance)
         {
             MeleeWeaponFirstPerson melee = __instance.m_weapon;
-            MeleeData? data = MeleeDataManager.Current.GetData(melee.MeleeArchetypeData.persistentID);
+            MeleeData? data = MeleeDataManager.Current.GetData(melee);
             if (data == null || !data.AttackOffset.HasCapsule) return;
 
             _capsuleRoutine = CoroutineManager.StartCoroutine(CapsuleHitDetection(melee, __instance, data).WrapToIl2Cpp());

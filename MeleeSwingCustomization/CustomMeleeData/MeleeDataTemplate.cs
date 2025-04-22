@@ -36,13 +36,14 @@
             {
                 ArchetypeID = 0,
                 Name = "Improved Bat",
-                AttackOffset = new(0, 0.55f, 0.0f),
-            },
-            new()
-            {
-                ArchetypeID = 0,
-                Name = "Improved Spear",
-                AttackOffset = new((new(0, 0.972f, -0.002f), new(0, -0.2f, 0))) { CapsuleDelay = 0.1f }
+                AttackOffset = new(new UnityEngine.Vector3(0, 0.6f, 0), new(0, -0.2f, -0.1f), new(0, 0.55f, -0.1f))
+                {
+                    CapsuleSize = 0.05f,
+                    CapsuleUseCamFwd = true,
+                    CapsuleCamFwdAdd = -1.2f,
+                    CapsuleDelay = 0.05f
+                },
+                AttackSphereCenterMod = 1f
             }
         };
     }

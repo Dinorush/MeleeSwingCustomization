@@ -27,7 +27,7 @@ namespace MSC.Utils
                 melee = bpItem.Instance.Cast<MeleeWeaponFirstPerson>();
             }
 
-            MeleeData? meleeData = MeleeDataManager.Current.GetData(melee.MeleeArchetypeData.persistentID);
+            MeleeData? meleeData = MeleeDataManager.Current.GetData(melee);
             _drawCoroutine = CoroutineManager.StartCoroutine(DrawSpheres(melee, meleeData).WrapToIl2Cpp());
         }
 

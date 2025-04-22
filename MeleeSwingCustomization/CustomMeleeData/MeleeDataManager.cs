@@ -21,7 +21,11 @@ namespace MSC.CustomMeleeData
         private readonly Dictionary<string, List<MeleeData>> _fileData = new();
         private readonly Dictionary<uint, MeleeData> _idToData = new();
         private readonly Dictionary<uint, MeleeData> _cachedData = new();
+        private readonly Dictionary<string, MeleeData> _prefabToCachedData = new();
         private readonly List<MeleeWeaponFirstPerson> _listeners = new();
+
+        // Added by external plugins
+        private readonly Dictionary<string, MeleeData> _prefabToData = new();
 
         private readonly LiveEditListener? _liveEditListener;
 
@@ -130,7 +134,7 @@ namespace MSC.CustomMeleeData
         {
             if (!MTFOWrapper.HasCustomDatablocks)
             {
-                DinoLogger.Log("No MTFO datablocks detected. Restricting to bat changes...");
+                DinoLogger.Log("No MTFO datablocks detected. Restricting to API...");
                 return;
             }
 
@@ -164,15 +168,30 @@ namespace MSC.CustomMeleeData
 
         public bool RegisterMelee(MeleeWeaponFirstPerson melee)
         {
-            if (!MTFOWrapper.HasCustomDatablocks) return false;
-
             CacheData(melee);
             AddMeleeListener(melee);
             return SetMeleeData(melee);
         }
 
         public bool HasData(uint id) => _idToData.ContainsKey(id);
-        public MeleeData? GetData(uint id) => _idToData.GetValueOrDefault(id);
+        public MeleeData? GetData(MeleeWeaponFirstPerson melee)
+        {
+            if (!_idToData.TryGetValue(melee.MeleeArchetypeData.persistentID, out var data))
+            {
+                var prefabs = melee.ItemDataBlock.FirstPersonPrefabs;
+                if (prefabs?.Count > 0)
+                    return _prefabToData.GetValueOrDefault(prefabs[0]);
+            }
+            return data;
+        }
+
+        public void AddDataForPrefab(string prefab, MeleeData data)
+        {
+            if (_prefabToData.ContainsKey(prefab))
+                DinoLogger.Warning($"Duplicate prefab data {prefab} detected. Previous name: {_prefabToData[prefab].Name}, new name: {data.Name}");
+            _prefabToData[prefab] = data;
+            FillDataWithCache(prefab);
+        }
 
         private void CacheData(MeleeWeaponFirstPerson melee)
         {
@@ -186,14 +205,28 @@ namespace MSC.CustomMeleeData
                 PushOffset = melee.ModelData.m_damageRefPush.localPosition
             };
             _cachedData.Add(id, cachedData);
-
             FillDataWithCache(id);
+
+            var prefabs = melee.ItemDataBlock.FirstPersonPrefabs;
+            if (prefabs?.Count > 0)
+            {
+                _prefabToCachedData.TryAdd(prefabs[0], cachedData);
+                FillDataWithCache(prefabs[0]);
+            }
         }
 
+        private void FillDataWithCache(string prefab)
+        {
+            if (_prefabToData.TryGetValue(prefab, out var customData) && _prefabToCachedData.TryGetValue(prefab, out var cachedData))
+                FillDataWithCache(customData, cachedData);
+        }
         private void FillDataWithCache(uint id)
         {
-            if (!_idToData.TryGetValue(id, out var customData) || !_cachedData.TryGetValue(id, out var cachedData)) return;
-
+            if (_idToData.TryGetValue(id, out var customData) && _cachedData.TryGetValue(id, out var cachedData))
+                FillDataWithCache(customData, cachedData);
+        }
+        private void FillDataWithCache(MeleeData customData, MeleeData cachedData)
+        {
             if (!customData.AttackOffset.HasOffset)
                 customData.AttackOffset.Offset = cachedData.AttackOffset.Offset;
             if (customData.PushOffset == null)
@@ -217,9 +250,16 @@ namespace MSC.CustomMeleeData
                 return false;
             }
 
+            if (!_idToData.TryGetValue(id, out MeleeData? customData))
+            {
+                var prefabs = melee.ItemDataBlock.FirstPersonPrefabs;
+                if (prefabs.Count > 0)
+                    customData = _prefabToData.GetValueOrDefault(prefabs[0]);
+            }
+
             Transform refAttack = melee.ModelData.m_damageRefAttack;
             Transform refPush = melee.ModelData.m_damageRefPush;
-            if (_idToData.TryGetValue(id, out var customData))
+            if (customData != null)
             {
                 refAttack.localPosition = customData.AttackOffset.Offset;
                 refPush.localPosition = customData.PushOffset!.Value;
