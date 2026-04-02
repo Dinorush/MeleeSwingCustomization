@@ -1,9 +1,9 @@
-﻿using GameData;
-using Gear;
+﻿using Gear;
 using GTFO.API.Utilities;
 using MSC.Dependencies;
 using MSC.JSON;
 using MSC.Utils;
+using ModifierAPI;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -26,6 +26,12 @@ namespace MSC.CustomMeleeData
 
         // Added by external plugins
         private readonly Dictionary<string, MeleeData> _prefabToData = new();
+
+        private readonly (IStatModifier light, IStatModifier charged, IStatModifier push) _speedModifiers = (
+            MeleeAttackSpeedAPI.AddLightModifier(1f, group: "MSC"),
+            MeleeAttackSpeedAPI.AddChargedAnimationModifier(1f, group: "MSC"),
+            MeleeAttackSpeedAPI.AddPushModifier(1f, group: "MSC")
+            );
 
         private readonly LiveEditListener? _liveEditListener;
 
@@ -264,7 +270,9 @@ namespace MSC.CustomMeleeData
                 refAttack.localPosition = customData.AttackOffset.Offset;
                 refPush.localPosition = customData.PushOffset!.Value;
                 melee.m_attackDamageSphereDotScale = customData.AttackSphereCenterMod - 1f;
-                SetMeleeAttackTimings(melee, customData);
+                _speedModifiers.light.Enable(customData.LightAttackSpeed);
+                _speedModifiers.charged.Enable(customData.ChargedAttackSpeed);
+                _speedModifiers.push.Enable(customData.PushSpeed);
                 return true;
             }
             else
@@ -272,39 +280,11 @@ namespace MSC.CustomMeleeData
                 refAttack.localPosition = cachedData.AttackOffset.Offset;
                 refPush.localPosition = cachedData.PushOffset!.Value;
                 melee.m_attackDamageSphereDotScale = cachedData.AttackSphereCenterMod - 1f;
-                SetMeleeAttackTimings(melee, cachedData);
+                _speedModifiers.light.Disable();
+                _speedModifiers.charged.Disable();
+                _speedModifiers.push.Disable();
                 return false;
             }
-        }
-
-        private void SetMeleeAttackTimings(MeleeWeaponFirstPerson melee, MeleeData data)
-        {
-            float mod = 1f / data.LightAttackSpeed;
-            var states = melee.m_states;
-            var animData = melee.MeleeAnimationData;
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackMissLeft].AttackData, animData.FPAttackMissLeft, mod);
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackMissRight].AttackData, animData.FPAttackMissRight, mod);
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackHitLeft].AttackData, animData.FPAttackHitLeft, mod);
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackHitRight].AttackData, animData.FPAttackHitRight, mod);
-
-            mod = 1f / data.ChargedAttackSpeed;
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeReleaseLeft].AttackData, animData.FPAttackChargeUpReleaseLeft, mod);
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeReleaseRight].AttackData, animData.FPAttackChargeUpReleaseRight, mod);
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeHitLeft].AttackData, animData.FPAttackChargeUpHitLeft, mod);
-            CopyMeleeData(states[(int)eMeleeWeaponState.AttackChargeHitRight].AttackData, animData.FPAttackChargeUpHitRight, mod);
-
-            mod = 1f / data.PushSpeed;
-            CopyMeleeData(states[(int)eMeleeWeaponState.Push].AttackData, animData.FPAttackPush, mod);
-        }
-
-        private static void CopyMeleeData(MeleeAttackData data, MeleeAnimationSetDataBlock.MeleeAttackData animData, float mod = 1f)
-        {
-            data.m_attackLength = animData.AttackLengthTime * mod;
-            data.m_attackHitTime = animData.AttackHitTime * mod;
-            data.m_damageStartTime = animData.DamageStartTime * mod;
-            data.m_damageEndTime = animData.DamageEndTime * mod;
-            data.m_attackCamFwdHitTime = animData.AttackCamFwdHitTime * mod;
-            data.m_comboEarlyTime = animData.ComboEarlyTime * mod;
         }
     }
 }

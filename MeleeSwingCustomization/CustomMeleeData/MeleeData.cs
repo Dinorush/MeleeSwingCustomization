@@ -4,6 +4,8 @@ namespace MSC.CustomMeleeData
 {
     public sealed class MeleeData
     {
+        public static readonly MeleeData Empty = new();
+
         public uint ArchetypeID { get; set; } = 0;
         public string Name { get; set; } = string.Empty;
         public OffsetData AttackOffset { get; set; } = new();
