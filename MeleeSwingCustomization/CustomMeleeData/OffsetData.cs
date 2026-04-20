@@ -14,6 +14,10 @@ namespace MSC.CustomMeleeData
         private Vector3? _offset = null;
         public Vector3 Offset { get => _offset!.Value; set => _offset = value; }
 
+        public float EntityRayLengthAdd { get; set; } = 0f;
+        public Vector3? EntityOffset { get; set; } = null;
+        public float EntitySize { get; set; } = 0f;
+        public bool EntityUseCenterMod { get; set; } = true;
         public Vector3? CapsuleOffset { get; set; } = null;
         public Vector3? CapsuleOffsetEnd { get; set; } = null;
         public bool CapsuleUseCamFwd { get; set; } = false;
@@ -37,6 +41,8 @@ namespace MSC.CustomMeleeData
 
         public bool HasOffset => _offset != null;
         public bool HasCapsule => CapsuleUseCamFwd || CapsuleOffset != null;
+        public bool HasEntity => EntityOffset != null;
+        public bool HasEntityRay => EntityRayLengthAdd != 0;
 
         public float GetCapsuleDelay(eMeleeWeaponState state)
         {
@@ -46,10 +52,16 @@ namespace MSC.CustomMeleeData
             return delay;
         }
 
-        public float GetCapsuleSize(MeleeArchetypeDataBlock data, float dotScale = 0)
+        public float GetCapsuleSize(MeleeArchetypeDataBlock data, float dotScale = 1f)
         {
             float size = CapsuleSize > 0 ? CapsuleSize : data.AttackSphereRadius;
-            return CapsuleUseCenterMod ? size * (1f + dotScale) : size;
+            return CapsuleUseCenterMod ? size * dotScale : size;
+        }
+
+        public float GetEntitySize(MeleeArchetypeDataBlock data, float dotScale = 1f)
+        {
+            float size = EntitySize > 0 ? EntitySize : data.AttackSphereRadius;
+            return EntityUseCenterMod ? size * dotScale : size;
         }
 
         public (Vector3 start, Vector3 end) GetCapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data)
@@ -89,6 +101,11 @@ namespace MSC.CustomMeleeData
                     );
         }
 
+        public Vector3 GetEntityOffset(Transform transform)
+        {
+            return transform.parent.position + transform.parent.rotation * EntityOffset!.Value;
+        }
+
         public void Serialize(Utf8JsonWriter writer)
         {
             if (_offset == null)
@@ -117,6 +134,11 @@ namespace MSC.CustomMeleeData
             else
                 writer.WriteNullValue();
 
+            writer.WriteNumber(nameof(EntityRayLengthAdd), EntityRayLengthAdd);
+            writer.WriteString(nameof(EntityOffset), MSCJson.Serialize(EntityOffset)[1..^1]);
+            writer.WriteNumber(nameof(EntitySize), EntitySize);
+            writer.WriteBoolean(nameof(EntityUseCenterMod), EntityUseCenterMod);
+
             writer.WritePropertyName(nameof(CapsuleOffset));
             if (CapsuleOffset != null && _offset == null)
             {
@@ -143,6 +165,18 @@ namespace MSC.CustomMeleeData
                 case "offsets":
                 case "offset":
                     ParseOffsetTriplet(reader.GetString()!.Trim());
+                    break;
+                case "entityraylengthadd":
+                    EntityRayLengthAdd = reader.GetSingle();
+                    break;
+                case "entityoffset":
+                    ParseEntityOffset(reader.GetString()!.Trim());
+                    break;
+                case "entitysize":
+                    EntitySize = reader.GetSingle();
+                    break;
+                case "entityusecentermod":
+                    EntityUseCenterMod = reader.GetBoolean();
                     break;
                 case "capsuleoffset":
                     ParseCapsuleOffset(reader.GetString()!.Trim());
@@ -183,6 +217,16 @@ namespace MSC.CustomMeleeData
             {
                 CapsuleOffset = vectors.Item1;
                 CapsuleOffsetEnd = vectors.Item2;
+                return true;
+            }
+            return false;
+        }
+
+        private bool ParseEntityOffset(string text)
+        {
+            if (TryParseVector3OffsetTriplet(text, out var vectors))
+            {
+                EntityOffset = vectors.Item1;
                 return true;
             }
             return false;

@@ -51,6 +51,9 @@ namespace MSC.Utils
                 }
                 else
                     DebugDraw3D.DrawSphere(normal, Configuration.DebugSphereSize, ColorExt.Red(0.4f));
+
+                if (data?.AttackOffset.HasEntity == true)
+                    DebugDraw3D.DrawSphere(data.AttackOffset.GetEntityOffset(melee.ModelData.m_damageRefAttack), Configuration.DebugSphereSize, ColorExt.Blue(0.4f));
             }
             _drawCoroutine = null;
         }
