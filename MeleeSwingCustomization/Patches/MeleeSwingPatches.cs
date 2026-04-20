@@ -13,28 +13,26 @@ namespace MSC.Patches
     internal static class MeleeSwingPatches
     {
         private static RaycastHit _rayHit;
-        private static MeleeData _activeData = null!;
         private static float _lastCrosshairCheckTime = 0f;
         private static bool _lastCrosshairCheck = false;
+        private static float _lastWallCheckTime = 0f;
+        private static float _lastWallDist = float.PositiveInfinity;
         private const float CameraUpdateInterval = 0.033f;
-
-        [HarmonyPatch(typeof(MeleeWeaponFirstPerson), nameof(MeleeWeaponFirstPerson.OnWield))]
-        [HarmonyPostfix]
-        private static void Post_Wield(MeleeWeaponFirstPerson __instance)
-        {
-            MeleeData? data = MeleeDataManager.Current.GetData(__instance);
-            if (data == null || (!data.AttackOffset.HasCapsule && !data.AttackOffset.HasEntity && !data.AttackOffset.HasEntityRay))
-                _activeData = null!;
-            else
-                _activeData = data;
-        }
 
         [HarmonyPatch(typeof(MeleeWeaponFirstPerson), nameof(MeleeWeaponFirstPerson.UpdateLocal))]
         [HarmonyWrapSafe]
         [HarmonyPrefix]
         private static bool Pre_Update(MeleeWeaponFirstPerson __instance)
         {
-            if (_activeData == null) return true;
+            var data = MeleeDataManager.Current.ActiveData;
+            if (data == null) return true;
+
+            if (Clock.Time - _lastWallCheckTime > CameraUpdateInterval)
+            {
+                float rayLen = data.AttackOffset.GetEntityRayLen(__instance.MeleeArchetypeData);
+                _lastWallCheckTime = Clock.Time;
+                _lastWallDist = Physics.Raycast(__instance.Owner.FPSCamera.m_camRay, out _rayHit, rayLen, LayerManager.MASK_WORLD) ? _rayHit.distance : float.PositiveInfinity;
+            }
 
             __instance.UpdateInput();
             __instance.CurrentState.Update();
@@ -45,15 +43,15 @@ namespace MSC.Patches
                 case eMeleeWeaponState.AttackChargeReleaseLeft:
                 case eMeleeWeaponState.AttackChargeReleaseRight:
                     var swingState = __instance.CurrentState.Cast<MWS_AttackSwingBase>();
-                    CustomHitDetection(__instance, swingState, _activeData);
+                    CustomHitDetection(__instance, swingState, data);
                     break;
             }
 
-            CrosshairUpdate(__instance);
+            CrosshairUpdate(__instance, data);
             return false;
         }
 
-        private static void CrosshairUpdate(MeleeWeaponFirstPerson melee)
+        private static void CrosshairUpdate(MeleeWeaponFirstPerson melee, MeleeData data)
         {
             var camera = melee.Owner.FPSCamera;
             bool hasEnemy = camera.CameraRayObject != null && camera.CameraRayDist <= melee.MeleeArchetypeData.CameraDamageRayLength && camera.CameraRayObject.layer == LayerManager.LAYER_ENEMY_DAMAGABLE;
@@ -62,7 +60,7 @@ namespace MSC.Patches
             {
                 if (Clock.Time - _lastCrosshairCheckTime > CameraUpdateInterval)
                 {
-                    float rayLen = melee.MeleeArchetypeData.CameraDamageRayLength + _activeData.AttackOffset.EntityRayLengthAdd;
+                    float rayLen = data.AttackOffset.GetEntityRayLen(melee.MeleeArchetypeData, _lastWallDist);
                     _lastCrosshairCheckTime = Clock.Time;
                     _lastCrosshairCheck = Physics.Raycast(camera.m_camRay, out _rayHit, rayLen, LayerManager.MASK_ENEMY_DAMAGABLE);
                 }
@@ -129,7 +127,7 @@ namespace MSC.Patches
 
         private static bool CheckForRaycastHit(FPSCamera camera, MeleeArchetypeDataBlock archBlock, MeleeData data, Il2CppGeneric.List<MeleeWeaponDamageData> hits)
         {
-            float rayLen = archBlock.CameraDamageRayLength + data.AttackOffset.EntityRayLengthAdd;
+            float rayLen = data.AttackOffset.GetEntityRayLen(archBlock, _lastWallDist);
             if (Physics.Raycast(camera.Position, camera.Forward, out _rayHit, rayLen, LayerManager.MASK_ENEMY_DAMAGABLE))
             {
                 hits.Add(new()
@@ -160,13 +158,13 @@ namespace MSC.Patches
             if (capsule)
             {
                 radius = offsetData.GetCapsuleSize(archBlock, dotScale);
-                (Vector3 start, Vector3 end) = offsetData.GetCapsuleOffsets(transform, archBlock);
+                (Vector3 start, Vector3 end) = offsetData.GetCapsuleOffsets(transform, archBlock, _lastWallDist);
                 colliders = Physics.OverlapCapsule(start, end, radius, LayerManager.MASK_MELEE_ATTACK_TARGETS);
             }
             else
             {
                 radius = offsetData.GetEntitySize(archBlock, dotScale);
-                colliders = Physics.OverlapSphere(offsetData.GetEntityOffset(transform), radius, LayerManager.MASK_MELEE_ATTACK_TARGETS);
+                colliders = Physics.OverlapSphere(offsetData.GetEntityOffset(transform, _lastWallDist), radius, LayerManager.MASK_MELEE_ATTACK_TARGETS);
             }
 
             if (colliders.Length == 0) return false;

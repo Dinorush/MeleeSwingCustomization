@@ -2,6 +2,7 @@
 using Gear;
 using MSC.JSON;
 using MSC.Utils;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
@@ -43,6 +44,7 @@ namespace MSC.CustomMeleeData
         public bool HasCapsule => CapsuleUseCamFwd || CapsuleOffset != null;
         public bool HasEntity => EntityOffset != null;
         public bool HasEntityRay => EntityRayLengthAdd != 0;
+        public bool HasCustomHitbox => HasCapsule || HasEntity || HasEntityRay;
 
         public float GetCapsuleDelay(eMeleeWeaponState state)
         {
@@ -64,14 +66,19 @@ namespace MSC.CustomMeleeData
             return EntityUseCenterMod ? size * dotScale : size;
         }
 
-        public (Vector3 start, Vector3 end) GetCapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data)
+        public float GetEntityRayLen(MeleeArchetypeDataBlock data, float wallDist = float.PositiveInfinity)
+        {
+            return Math.Min(data.CameraDamageRayLength + EntityRayLengthAdd * MeleeDataManager.Current.CurrentRangeMod, wallDist);
+        }
+
+        public (Vector3 start, Vector3 end) GetCapsuleOffsets(Transform transform, MeleeArchetypeDataBlock data, float wallDist = float.PositiveInfinity)
         {
             Vector3 localPos = transform.localPosition;
             Vector3 parentPos = transform.parent.position;
             Quaternion parentRot = transform.parent.rotation;
             if (CapsuleUseCamFwd)
             {
-                float camFwdLength = CapsuleCamFwdAdd + data.CameraDamageRayLength;
+                float camFwdLength = CapsuleCamFwdAdd + GetEntityRayLen(data, wallDist);
                 
                 if (CapsuleOffset == null)
                 {
@@ -101,9 +108,9 @@ namespace MSC.CustomMeleeData
                     );
         }
 
-        public Vector3 GetEntityOffset(Transform transform)
+        public Vector3 GetEntityOffset(Transform transform, float wallDist = float.PositiveInfinity)
         {
-            return transform.parent.position + transform.parent.rotation * EntityOffset!.Value;
+            return transform.parent.position + (transform.parent.rotation * EntityOffset!.Value).normalized * Math.Min(wallDist, EntityOffset.Value.magnitude);
         }
 
         public void Serialize(Utf8JsonWriter writer)
@@ -167,7 +174,7 @@ namespace MSC.CustomMeleeData
                     ParseOffsetTriplet(reader.GetString()!.Trim());
                     break;
                 case "entityraylengthadd":
-                    EntityRayLengthAdd = reader.GetSingle();
+                    EntityRayLengthAdd = Math.Max(0, reader.GetSingle());
                     break;
                 case "entityoffset":
                     ParseEntityOffset(reader.GetString()!.Trim());

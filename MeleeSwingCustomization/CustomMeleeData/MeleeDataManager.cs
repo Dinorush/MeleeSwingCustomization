@@ -1,13 +1,12 @@
 ﻿using Gear;
 using GTFO.API.Utilities;
+using ModifierAPI;
 using MSC.Dependencies;
 using MSC.JSON;
 using MSC.Utils;
-using ModifierAPI;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using UnityEngine;
@@ -18,11 +17,15 @@ namespace MSC.CustomMeleeData
     {
         public static readonly MeleeDataManager Current = new();
 
+        public MeleeData? ActiveData { get; private set; } = null;
+        public float CurrentRangeMod { get; private set; } = 1f;
+
         private readonly Dictionary<string, List<MeleeData>> _fileData = new();
         private readonly Dictionary<uint, MeleeData> _idToData = new();
         private readonly Dictionary<uint, MeleeData> _cachedData = new();
         private readonly Dictionary<string, MeleeData> _prefabToCachedData = new();
-        private readonly List<MeleeWeaponFirstPerson> _listeners = new();
+
+        private MeleeWeaponFirstPerson? _activeMelee = null;
 
         // Added by external plugins
         private readonly Dictionary<string, MeleeData> _prefabToData = new();
@@ -114,16 +117,10 @@ namespace MSC.CustomMeleeData
 
         private void ResetListeners()
         {
-            for (int i = _listeners.Count - 1; i >= 0; --i)
-            {
-                if (_listeners[i] != null)
-                {
-                    SetMeleeData(_listeners[i]);
-                    DebugUtil.DrawDebugSpheres(_listeners[i]);
-                }
-                else
-                    _listeners.RemoveAt(i);
-            }
+            if (_activeMelee == null) return;
+
+            SetActiveMelee(_activeMelee);
+            DebugUtil.DrawDebugSpheres(_activeMelee);
         }
 
         private void PrintCustomIDs()
@@ -168,6 +165,14 @@ namespace MSC.CustomMeleeData
             _liveEditListener.FileCreated += FileCreated;
             _liveEditListener.FileChanged += FileChanged;
             _liveEditListener.FileDeleted += FileDeleted;
+
+            MeleeRangeAPI.SetRangeOverride((baseRange, mod) =>
+            {
+                CurrentRangeMod = mod;
+                if (ActiveData == null) return true;
+                
+                return !ActiveData.AttackOffset.HasEntityRay;
+            });
         }
 
         internal void Init() { }
@@ -175,8 +180,24 @@ namespace MSC.CustomMeleeData
         public bool RegisterMelee(MeleeWeaponFirstPerson melee)
         {
             CacheData(melee);
-            AddMeleeListener(melee);
-            return SetMeleeData(melee);
+            return SetActiveMelee(melee);
+        }
+
+        private bool SetActiveMelee(MeleeWeaponFirstPerson melee)
+        {
+            _activeMelee = melee;
+            if (SetMeleeData(melee))
+            {
+                ActiveData = GetData(melee);
+                MeleeRangeAPI.RefreshRange();
+                return true;
+            }
+            else
+            {
+                ActiveData = null;
+                MeleeRangeAPI.RefreshRange();
+                return false;
+            }
         }
 
         public bool HasData(uint id) => _idToData.ContainsKey(id);
@@ -237,14 +258,6 @@ namespace MSC.CustomMeleeData
                 customData.AttackOffset.Offset = cachedData.AttackOffset.Offset;
             if (customData.PushOffset == null)
                 customData.PushOffset = cachedData.PushOffset;
-        }
-
-        private void AddMeleeListener(MeleeWeaponFirstPerson melee)
-        {
-            // Prevent duplicates (not using IL2CPP list so don't trust Contains)
-            if (_listeners.Any(listener => listener?.GetInstanceID() == melee.GetInstanceID())) return;
-
-            _listeners.Add(melee);
         }
 
         private bool SetMeleeData(MeleeWeaponFirstPerson melee)
