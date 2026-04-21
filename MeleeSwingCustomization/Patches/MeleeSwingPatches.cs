@@ -128,7 +128,8 @@ namespace MSC.Patches
 
         private static bool CheckForRaycastHit(FPSCamera camera, MeleeArchetypeDataBlock archBlock, MeleeData data, Il2CppGeneric.List<MeleeWeaponDamageData> hits)
         {
-            float rayLen = data.AttackOffset.GetEntityRayLen(archBlock, _lastWallDist);
+            // Extra dist to find a potential door/lock hit by the original wall raycast.
+            float rayLen = data.AttackOffset.GetEntityRayLen(archBlock, _lastWallDist + 0.05f);
             if (Physics.Raycast(camera.Position, camera.Forward, out _rayHit, rayLen, LayerManager.MASK_MELEE_ATTACK_TARGETS))
             {
                 if (_rayHit.collider.gameObject.layer == LayerManager.LAYER_DYNAMIC)
@@ -141,7 +142,7 @@ namespace MSC.Patches
                 var damageComp = _rayHit.collider.GetComponent<IDamageable>();
                 if (damageComp == null) return false;
 
-                var baseComp = damageComp?.GetBaseDamagable();
+                var baseComp = damageComp.GetBaseDamagable();
                 if (baseComp != null)
                     baseComp.TempSearchID = DamageUtil.SearchID;
 
