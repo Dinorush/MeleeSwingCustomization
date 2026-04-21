@@ -130,10 +130,15 @@ namespace MSC.Patches
             float rayLen = data.AttackOffset.GetEntityRayLen(archBlock, _lastWallDist);
             if (Physics.Raycast(camera.Position, camera.Forward, out _rayHit, rayLen, LayerManager.MASK_ENEMY_DAMAGABLE))
             {
+                var damageComp = _rayHit.collider.GetComponent<IDamageable>();
+                var baseComp = damageComp?.GetBaseDamagable();
+                if (baseComp != null)
+                    baseComp.TempSearchID = DamageUtil.SearchID;
+
                 hits.Add(new()
                 {
                     damageGO = _rayHit.collider.gameObject,
-                    damageComp = _rayHit.collider.GetComponent<IDamageable>(),
+                    damageComp = damageComp,
                     hitPos = _rayHit.point,
                     hitNormal = _rayHit.normal,
                     sourcePos = camera.Position

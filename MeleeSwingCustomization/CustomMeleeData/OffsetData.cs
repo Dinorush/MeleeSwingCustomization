@@ -142,7 +142,11 @@ namespace MSC.CustomMeleeData
                 writer.WriteNullValue();
 
             writer.WriteNumber(nameof(EntityRayLengthAdd), EntityRayLengthAdd);
-            writer.WriteString(nameof(EntityOffset), MSCJson.Serialize(EntityOffset)[1..^1]);
+            writer.WritePropertyName(nameof(EntityOffset));
+            if (EntityOffset != null)
+                writer.WriteStringValue(MSCJson.Serialize(EntityOffset)[1..^1]);
+            else
+                writer.WriteNullValue();
             writer.WriteNumber(nameof(EntitySize), EntitySize);
             writer.WriteBoolean(nameof(EntityUseCenterMod), EntityUseCenterMod);
 
