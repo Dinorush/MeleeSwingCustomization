@@ -78,7 +78,7 @@ namespace MSC.CustomMeleeData
             Quaternion parentRot = transform.parent.rotation;
             if (CapsuleUseCamFwd)
             {
-                float camFwdLength = CapsuleCamFwdAdd + GetEntityRayLen(data, wallDist);
+                float camFwdLength = Math.Min(CapsuleCamFwdAdd + data.CameraDamageRayLength + EntityRayLengthAdd * MeleeDataManager.Current.CurrentRangeMod, wallDist);
                 
                 if (CapsuleOffset == null)
                 {
