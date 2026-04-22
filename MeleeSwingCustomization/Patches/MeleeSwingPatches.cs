@@ -104,7 +104,7 @@ namespace MSC.Patches
             if (!archBlock.CanHitMultipleEnemies && Physics.Raycast(camera.Position, camera.Forward, out _rayHit, archBlock.CameraDamageRayLength, LayerManager.MASK_MELEE_ATTACK_TARGETS_WITH_STATIC))
                 return;
 
-            if (CheckForHits(hasRay && elapsed >= rayStartDelay, hasEntity, hasCapsule && elapsed >= capsuleStartDelay, camera, archBlock, attackData, data, out var hits))
+            if (CheckForHits(hasRay, elapsed >= rayStartDelay, hasEntity, hasCapsule && elapsed >= capsuleStartDelay, camera, archBlock, attackData, data, out var hits))
             {
                 mws.m_targetsFound = true;
                 melee.HitsForDamage = hits;
@@ -112,18 +112,19 @@ namespace MSC.Patches
             }
         }
 
-        private static bool CheckForHits(bool hasRay, bool checkEntity, bool checkCapsule, FPSCamera camera, MeleeArchetypeDataBlock archBlock, MeleeAttackData attackData, MeleeData data, [MaybeNullWhen(false)] out Il2CppGeneric.List<MeleeWeaponDamageData> hits)
+        private static bool CheckForHits(bool checkRay, bool canRayHit, bool checkEntity, bool checkCapsule, FPSCamera camera, MeleeArchetypeDataBlock archBlock, MeleeAttackData attackData, MeleeData data, [MaybeNullWhen(false)] out Il2CppGeneric.List<MeleeWeaponDamageData> hits)
         {
             DamageUtil.IncrementSearchID();
             hits = new();
             bool stopOnHit = !archBlock.CanHitMultipleEnemies;
-            if (hasRay && CheckForRaycastHit(camera, archBlock, data, hits) && stopOnHit)
-                return true;
+            bool directHit = checkRay && CheckForRaycastHit(camera, archBlock, data, hits);
+            if (directHit && stopOnHit)
+                return canRayHit;
             if (checkEntity && CheckForHits_Inner(capsule: false, camera, archBlock, attackData, data, hits) && stopOnHit)
                 return true;
             if (checkCapsule && CheckForHits_Inner(capsule: true, camera, archBlock, attackData, data, hits) && stopOnHit)
                 return true;
-            return hits.Count > 0;
+            return hits.Count > (directHit && !canRayHit ? 1 : 0);
         }
 
         private static bool CheckForRaycastHit(FPSCamera camera, MeleeArchetypeDataBlock archBlock, MeleeData data, Il2CppGeneric.List<MeleeWeaponDamageData> hits)

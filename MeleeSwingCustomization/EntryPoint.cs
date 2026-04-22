@@ -6,7 +6,7 @@ using MSC.Dependencies;
 
 namespace MSC
 {
-    [BepInPlugin("Dinorush." + MODNAME, MODNAME, "1.4.2")]
+    [BepInPlugin("Dinorush." + MODNAME, MODNAME, "1.4.3")]
     [BepInDependency("dev.gtfomodding.gtfo-api", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency("Dinorush.ModifierAPI", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency(MTFOWrapper.GUID, BepInDependency.DependencyFlags.SoftDependency)]
