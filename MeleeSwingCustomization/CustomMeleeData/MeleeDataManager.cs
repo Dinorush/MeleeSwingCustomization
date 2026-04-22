@@ -1,11 +1,13 @@
 ﻿using Gear;
 using GTFO.API.Utilities;
 using ModifierAPI;
+using MSC.API;
 using MSC.Dependencies;
 using MSC.JSON;
 using MSC.Utils;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -29,6 +31,7 @@ namespace MSC.CustomMeleeData
 
         // Added by external plugins
         private readonly Dictionary<string, MeleeData> _prefabToData = new();
+        private readonly Dictionary<string, List<MeleeDataAPI.TryGetMeleeData>> _prefabToDataInstance = new();
 
         private readonly (IStatModifier light, IStatModifier charged, IStatModifier push) _speedModifiers = (
             MeleeAttackSpeedAPI.AddLightModifier(1f, group: "MSC"),
@@ -206,8 +209,8 @@ namespace MSC.CustomMeleeData
             if (!_idToData.TryGetValue(melee.MeleeArchetypeData.persistentID, out var data))
             {
                 var prefabs = melee.ItemDataBlock.FirstPersonPrefabs;
-                if (prefabs?.Count > 0)
-                    return _prefabToData.GetValueOrDefault(prefabs[0]);
+                if (prefabs?.Count > 0 && TryGetPrefabData(melee, prefabs[0], out data))
+                    return data;
             }
             return data;
         }
@@ -217,7 +220,35 @@ namespace MSC.CustomMeleeData
             if (_prefabToData.ContainsKey(prefab))
                 DinoLogger.Warning($"Duplicate prefab data {prefab} detected. Previous name: {_prefabToData[prefab].Name}, new name: {data.Name}");
             _prefabToData[prefab] = data;
-            FillDataWithCache(prefab);
+            if (_prefabToCachedData.TryGetValue(prefab, out var cachedData))
+                FillDataWithCache(data, cachedData);
+        }
+
+        public void AddInstanceDataForPrefab(string prefab, MeleeDataAPI.TryGetMeleeData callback)
+        {
+            if (!_prefabToDataInstance.TryGetValue(prefab, out var list))
+                _prefabToDataInstance.Add(prefab, list = new());
+            list.Add(callback);
+        }
+
+        private bool TryGetPrefabData(MeleeWeaponFirstPerson melee, string prefab, [MaybeNullWhen(false)] out MeleeData data)
+        {
+            if (_prefabToData.TryGetValue(prefab, out data))
+                return true;
+
+            if (!_prefabToDataInstance.TryGetValue(prefab, out var list))
+                return false;
+
+            foreach (var callback in list)
+            {
+                if (callback(melee, out data))
+                {
+                    if (_prefabToCachedData.TryGetValue(prefab, out var cachedData))
+                        FillDataWithCache(data, cachedData);
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void CacheData(MeleeWeaponFirstPerson melee)
@@ -238,13 +269,13 @@ namespace MSC.CustomMeleeData
             if (prefabs?.Count > 0)
             {
                 _prefabToCachedData.TryAdd(prefabs[0], cachedData);
-                FillDataWithCache(prefabs[0]);
+                FillDataWithCache(prefabs[0], cachedData);
             }
         }
 
-        private void FillDataWithCache(string prefab)
+        private void FillDataWithCache(string prefab, MeleeData cachedData)
         {
-            if (_prefabToData.TryGetValue(prefab, out var customData) && _prefabToCachedData.TryGetValue(prefab, out var cachedData))
+            if (_prefabToData.TryGetValue(prefab, out var customData))
                 FillDataWithCache(customData, cachedData);
         }
         private void FillDataWithCache(uint id)
@@ -273,7 +304,7 @@ namespace MSC.CustomMeleeData
             {
                 var prefabs = melee.ItemDataBlock.FirstPersonPrefabs;
                 if (prefabs.Count > 0)
-                    customData = _prefabToData.GetValueOrDefault(prefabs[0]);
+                    TryGetPrefabData(melee, prefabs[0], out customData);
             }
 
             Transform refAttack = melee.ModelData.m_damageRefAttack;
